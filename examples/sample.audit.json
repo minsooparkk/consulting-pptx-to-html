@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "source": "sample.pptx",
+  "source_sha256": "6daf08737e729ac2d966c8db05da2db00d6b48b7091c5f2ea08af127f1bb5023",
+  "slide_count": 4,
+  "width_px": 1279.9998950131233,
+  "height_px": 720.0,
+  "stats": {
+    "objects": 82,
+    "svg_shapes": 71,
+    "text_frames": 57,
+    "gradients": 4,
+    "outer_shadows": 6,
+    "tables": 1
+  },
+  "fonts_requested": [
+    "Pretendard"
+  ],
+  "notes_included": false,
+  "issues": [
+    {
+      "slide": 4,
+      "object_id": "package",
+      "feature": "shadow-rendering",
+      "severity": "warning",
+      "message": "Outer shadows use CSS filter approximation; compare with PowerPoint"
+    }
+  ],
+  "slides": [
+    {
+      "index": 1,
+      "source_part": "ppt/slides/slide1.xml",
+      "objects": 8,
+      "text_runs": 7
+    },
+    {
+      "index": 2,
+      "source_part": "ppt/slides/slide2.xml",
+      "objects": 9,
+      "text_runs": 19
+    },
+    {
+      "index": 3,
+      "source_part": "ppt/slides/slide3.xml",
+      "objects": 42,
+      "text_runs": 29
+    },
+    {
+      "index": 4,
+      "source_part": "ppt/slides/slide4.xml",
+      "objects": 23,
+      "text_runs": 17
+    }
+  ],
+  "text_runs": 72,
+  "text_sha256": "ed168b053b01c872707b492f65266fe63805617d4703ad59808dc086ef2190ff",
+  "powerpoint_visual_comparison": "NOT_PERFORMED",
+  "browser_layout_check": "NOT_PERFORMED",
+  "html_text_sha256": "ed168b053b01c872707b492f65266fe63805617d4703ad59808dc086ef2190ff",
+  "serialization_check": "PASS",
+  "embedded_fonts": [],
+  "font_availability": "SYSTEM_FONTS_NOT_VERIFIED",
+  "source_bytes": 30227,
+  "conversion_status": "PASS_STRUCTURE",
+  "html_bytes": 103942
+}

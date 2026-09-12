@@ -1,0 +1,36 @@
+{
+  "ok": true,
+  "slides": [
+    {
+      "index": 1,
+      "overflows": [],
+      "outOfBounds": [],
+      "manualReview": []
+    },
+    {
+      "index": 2,
+      "overflows": [],
+      "outOfBounds": [],
+      "manualReview": []
+    },
+    {
+      "index": 3,
+      "overflows": [],
+      "outOfBounds": [],
+      "manualReview": []
+    },
+    {
+      "index": 4,
+      "overflows": [],
+      "outOfBounds": [],
+      "manualReview": []
+    }
+  ],
+  "sourceErrors": 0,
+  "tolerancePx": 2.5,
+  "fontsRequested": [
+    "Pretendard"
+  ],
+  "fontAvailability": "NOT_VERIFIED",
+  "powerpointVisualComparison": "NOT_PERFORMED"
+}
