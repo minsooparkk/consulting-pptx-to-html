@@ -5,6 +5,7 @@ import argparse
 import hashlib
 import html
 import json
+import math
 import re
 import sys
 from html.parser import HTMLParser
@@ -38,6 +39,8 @@ def main(argv=None):
     ap.add_argument('--include-notes',action='store_true',help='Notes become readable by every HTML recipient')
     ap.add_argument('--fallback-manifest',type=Path,help='JSON object ID -> local image path; relative to manifest')
     ap.add_argument('--font',action='append',default=[],metavar='FAMILY,WEIGHT,FILE',help='Embed a licensed font, e.g. Pretendard,400,/fonts/Pretendard-Regular.woff2')
+    ap.add_argument('--motion',choices=['auto','none'],default='auto',help='Automatic brief entrances on slide navigation (default), or no added motion')
+    ap.add_argument('--line-height-factor',action='append',default=[],metavar='FAMILY=FACTOR',help='Measured natural line-height factor for percentage spacing; Pretendard defaults to 1.2')
     ap.add_argument('--allow-unsupported',action='store_true',help='Keep a marked partial preview and return 0 even with conversion errors')
     ap.add_argument('--overwrite',action='store_true')
     args=ap.parse_args(argv)
@@ -61,7 +64,15 @@ def main(argv=None):
         if not mime: ap.error('Supported fonts: woff2, woff, ttf, otf')
         fontcss.append('@font-face{font-family:'+css_family(family)+';font-style:normal;font-weight:'+weight+';src:url("'+data_uri(file.read_bytes(),mime)+'");font-display:block;}')
         embedded.append({'family':family,'weight':weight})
-    converter=Converter(args.pptx,args.include_notes,fallbacks)
+    factors={}
+    for spec in args.line_height_factor:
+        try:
+            family,value=spec.rsplit('=',1)
+            factor=float(value)
+            if not family.strip() or not math.isfinite(factor) or factor<=0: raise ValueError()
+        except ValueError: ap.error('--line-height-factor expects FAMILY=FACTOR with a finite positive number')
+        factors[family.strip()]=factor
+    converter=Converter(args.pptx,args.include_notes,fallbacks,line_height_factors=factors)
     try: slides,manifest,report=converter.convert()
     finally: converter.close()
     collector=RunCollector(); collector.feed(slides)
@@ -77,15 +88,21 @@ def main(argv=None):
     report['conversion_status']='PARTIAL_REVIEW_REQUIRED' if errors else 'PASS_STRUCTURE'
     manifest['conversion_status']=report['conversion_status']
     manifest['embedded_fonts']=embedded
+    manifest['motion']={'mode':args.motion,'duration_ms':420,'max_delay_ms':500}
+    report['motion']={**manifest['motion'],'maximum_total_ms':920 if args.motion=='auto' else 0,'manual_steps':False,'item_click_actions':False,'browser_verified':False}
     template=(ROOT/'assets/player.html').read_text(encoding='utf-8')
     replacements={'TITLE':html.escape(manifest['title'],quote=True),'STYLE':'\n'.join(fontcss)+'\n'+(ROOT/'assets/player.css').read_text(encoding='utf-8'),
                   'SLIDES':slides,'MANIFEST':safe_json(manifest),'SCRIPT':(ROOT/'assets/player.js').read_text(encoding='utf-8')}
+    if args.motion=='auto':
+        replacements['STYLE']+='\n'+(ROOT/'assets/auto-motion.css').read_text(encoding='utf-8')
+        replacements['SCRIPT']+='\n'+(ROOT/'assets/auto-motion.js').read_text(encoding='utf-8')
     # One-pass token replacement: source text containing {{...}} cannot become executable CSS/JS.
     out=re.sub(r'\{\{(TITLE|STYLE|SLIDES|MANIFEST|SCRIPT)\}\}',lambda m:replacements[m.group(1)],template)
     if re.search(r'\{\{(TITLE|STYLE|SLIDES|MANIFEST|SCRIPT)\}\}',template) is None: raise RuntimeError('Invalid player template')
     report['html_bytes']=len(out.encode('utf-8'))
+    report['html_sha256']=hashlib.sha256(out.encode('utf-8')).hexdigest()
     args.output.parent.mkdir(parents=True,exist_ok=True); report_path.parent.mkdir(parents=True,exist_ok=True)
-    args.output.write_text(out,encoding='utf-8')
+    args.output.write_bytes(out.encode('utf-8'))
     report_path.write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
     print(json.dumps({'html':str(args.output),'report':str(report_path),'slides':report['slide_count'],'objects':report['stats'].get('objects',0),'text_runs':report['text_runs'],'errors':len(errors),'warnings':len(report['issues'])-len(errors),'status':report['conversion_status'],'visual_comparison':'NOT_PERFORMED'},ensure_ascii=False))
     return 2 if errors and not args.allow_unsupported else 0

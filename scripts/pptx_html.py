@@ -46,7 +46,15 @@ def chosen(nodes, path): return first(find(n, path) for n in nodes)
 def avalue(nodes, key, default=None): return next((n.get(key) for n in nodes if n is not None and key in n.attrib), default)
 
 class Converter:
-    def __init__(self, source, include_notes=False, fallbacks=None):
+    def __init__(self, source, include_notes=False, fallbacks=None, line_height_factors=None):
+        self.line_height_overrides = dict(line_height_factors or {})
+        self.line_height_factors = {'pretendard': 1.2}
+        for family, factor in self.line_height_overrides.items():
+            factor = float(factor)
+            if not family.strip() or not math.isfinite(factor) or factor <= 0:
+                raise ValueError('Line-height factors require a font family and a finite positive number')
+            self.line_height_factors[family.strip().casefold()] = factor
+        self.line_height_usage = Counter()
         self.source = Path(source)
         self.z = ZipFile(self.source)
         entries = self.z.infolist()
@@ -243,7 +251,7 @@ class Converter:
             if parent is not None: nodes.append(parent)
         return nodes
 
-    def font(self, node, defaults):
+    def font_family(self, node, defaults):
         props = [node] + defaults
         family_node = chosen(props,'a:ea')
         if not attr(family_node,'typeface'): family_node = chosen(props,'a:latin')
@@ -252,6 +260,11 @@ class Converter:
             branch = 'majorFont' if family.startswith('+mj') else 'minorFont'
             path = 'a:themeElements/a:fontScheme/a:' + branch
             family = attr(find(self.theme,path+'/a:ea'),'typeface') or attr(find(self.theme,path+'/a:latin'),'typeface') or 'Arial'
+        return family
+
+    def font(self, node, defaults):
+        props = [node] + defaults
+        family = self.font_family(node, defaults)
         self.fonts.add(family)
         size = num(avalue(props,'sz','1800'))/100 * 4/3
         color = self.color(chosen(props,'a:solidFill'))
@@ -318,7 +331,16 @@ class Converter:
                 ps += css+':'+nfmt(val)+'px;'
             sp = chosen(pprops,'a:lnSpc')
             pts,pct = find(sp,'a:spcPts'),find(sp,'a:spcPct')
-            line = nfmt(num(pts.get('val'))/100*4/3)+'px' if pts is not None else nfmt(num(attr(pct,'val','100000'))/100000)
+            if pts is not None:
+                # Exact point spacing already specifies the line advance.
+                line = nfmt(num(pts.get('val'))/100*4/3)+'px'
+            else:
+                family = self.font_family(first_run_pr if first_run_pr is not None else find(p,'a:endParaRPr'), defaults)
+                factor = self.line_height_factors.get(family.strip().casefold(), 1.0)
+                source_line = num(attr(pct,'val','100000'))/100000
+                line = nfmt(source_line * factor)
+                if factor != 1.0 or family.strip().casefold() in {f.strip().casefold() for f in self.line_height_overrides}:
+                    self.line_height_usage[(family, factor, source_line, source_line * factor)] += 1
             ps += 'line-height:'+line+';'+base_style
             bullet = next((c for pp in pprops if pp is not None for c in pp if tag(c) in ('buNone','buChar','buAutoNum','buBlip')),None)
             runs = []
@@ -611,4 +633,14 @@ class Converter:
         if any('comments/' in n for n in self.z.namelist()): self.issue('comments','Review comments are excluded','warning')
         manifest={'title':self.source.stem,'width':self.width,'height':self.height,'slide_count':len(output),'fonts':sorted(self.fonts),'issues':self.issues,'notes':self.notes if self.include_notes else [],'source_sha256':hashlib.sha256(self.source.read_bytes()).hexdigest()}
         report={'schema_version':1,'source':self.source.name,'source_sha256':manifest['source_sha256'],'slide_count':len(output),'width_px':self.width,'height_px':self.height,'stats':dict(self.stats),'fonts_requested':sorted(self.fonts),'notes_included':self.include_notes,'issues':self.issues,'slides':slide_records,'text_runs':len(self.texts),'text_sha256':hashlib.sha256('\0'.join(self.texts).encode()).hexdigest(),'powerpoint_visual_comparison':'NOT_PERFORMED','browser_layout_check':'NOT_PERFORMED'}
+        report['line_height_calibration'] = {
+            'default_factors': {'Pretendard': 1.2},
+            'overrides': self.line_height_overrides,
+            'basis': 'Font natural line advance; Pretendard 1.2 measured in PowerPoint. Other fonts unchanged unless overridden.',
+            'exact_point_spacing_unchanged': True,
+            'applications': [
+                {'font':family, 'factor':factor, 'source_ratio':source, 'css_ratio':css, 'paragraphs':count}
+                for (family,factor,source,css),count in sorted(self.line_height_usage.items())
+            ]
+        }
         return ''.join(output),manifest,report

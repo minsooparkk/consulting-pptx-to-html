@@ -1,5 +1,6 @@
 """Run with: python -m unittest discover -s tests -v (stdlib only)."""
 import json
+import hashlib
 import subprocess
 import sys
 import shutil
@@ -144,5 +145,49 @@ class ConversionTests(unittest.TestCase):
             self.assertEqual(r['html_text_sha256'],r['text_sha256'])
             p=subprocess.run(cmd,capture_output=True,text=True,encoding='utf-8')
             self.assertNotEqual(p.returncode,0)
+
+    def test_font_natural_line_height_and_exact_point_spacing(self):
+        def shape(identifier, family, spacing):
+            return f'''<p:sp><p:nvSpPr><p:cNvPr id="{identifier}" name="metric-fixture"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="952500" y="952500"/><a:ext cx="3800000" cy="1900000"/></a:xfrm><a:prstGeom prst="rect"/><a:noFill/></p:spPr><p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:pPr><a:lnSpc>{spacing}</a:lnSpc></a:pPr><a:r><a:rPr sz="1500"><a:latin typeface="{family}"/><a:ea typeface="{family}"/></a:rPr><a:t>First line</a:t></a:r><a:br/><a:r><a:rPr sz="1500"><a:latin typeface="{family}"/><a:ea typeface="{family}"/></a:rPr><a:t>Second line</a:t></a:r></a:p></p:txBody></p:sp>'''
+        fragment=''.join([
+            shape(110,'Pretendard','<a:spcPct val="110000"/>'),
+            shape(111,'Pretendard','<a:spcPts val="1800"/>'),
+            shape(112,'Arial','<a:spcPct val="110000"/>')])
+        def paragraph(page, identifier):return page.split(f'id="s001_slide_{identifier}"',1)[1].split('</p>',1)[0]
+        with workspace() as tmp:
+            fixture=self.mutated(tmp,fragment)
+            out,_,report,_=self.parse(fixture)
+            self.assertIn('line-height:1.32;',paragraph(out,110))
+            self.assertIn('line-height:24px;',paragraph(out,111))
+            self.assertIn('line-height:1.1;',paragraph(out,112))
+            out,_,report,_=self.parse(fixture,line_height_factors={'Pretendard':1.0,'Arial':1.15})
+            self.assertIn('line-height:1.1;',paragraph(out,110))
+            self.assertIn('line-height:24px;',paragraph(out,111))
+            self.assertIn('line-height:1.265;',paragraph(out,112))
+            self.assertTrue(report['line_height_calibration']['exact_point_spacing_unchanged'])
+
+    def test_auto_motion_opt_out_preserves_content_and_file_hash(self):
+        with workspace() as tmp:
+            runs=[]
+            for mode in ['auto','none']:
+                target=Path(tmp)/(mode+'.html')
+                result=subprocess.run([sys.executable,str(ROOT/'scripts/convert.py'),str(SAMPLE),'-o',str(target),'--motion',mode],capture_output=True,text=True,encoding='utf-8')
+                self.assertEqual(result.returncode,0,result.stderr)
+                report=json.loads(target.with_suffix('.audit.json').read_text(encoding='utf-8'))
+                page=target.read_text(encoding='utf-8'); parser=RunCollector();parser.feed(page);runs.append(parser.runs)
+                self.assertEqual(report['motion']['mode'],mode)
+                self.assertFalse(report['motion']['manual_steps'])
+                self.assertEqual(report['html_sha256'],hashlib.sha256(target.read_bytes()).hexdigest())
+                self.assertEqual(report['html_bytes'],target.stat().st_size)
+                self.assertEqual('content-arrive' in page,mode=='auto')
+            self.assertEqual(runs[0],runs[1])
+
+    def test_invalid_line_height_override_rejected_without_output(self):
+        with workspace() as tmp:
+            for value in ['Pretendard=nan','Pretendard=0','=1.2','Pretendard=inf']:
+                target=Path(tmp)/'invalid.html'
+                result=subprocess.run([sys.executable,str(ROOT/'scripts/convert.py'),str(SAMPLE),'-o',str(target),'--line-height-factor',value],capture_output=True,text=True,encoding='utf-8')
+                self.assertNotEqual(result.returncode,0)
+                self.assertFalse(target.exists())
 
 if __name__=='__main__': unittest.main()

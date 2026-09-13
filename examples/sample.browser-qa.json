@@ -1,36 +1,9 @@
 {
-  "ok": true,
-  "slides": [
-    {
-      "index": 1,
-      "overflows": [],
-      "outOfBounds": [],
-      "manualReview": []
-    },
-    {
-      "index": 2,
-      "overflows": [],
-      "outOfBounds": [],
-      "manualReview": []
-    },
-    {
-      "index": 3,
-      "overflows": [],
-      "outOfBounds": [],
-      "manualReview": []
-    },
-    {
-      "index": 4,
-      "overflows": [],
-      "outOfBounds": [],
-      "manualReview": []
-    }
-  ],
-  "sourceErrors": 0,
-  "tolerancePx": 2.5,
-  "fontsRequested": [
-    "Pretendard"
-  ],
-  "fontAvailability": "NOT_VERIFIED",
+  "ok": null,
+  "status": "NOT_PERFORMED_FOR_CURRENT_OUTPUT",
+  "checked_file": "sample.html",
+  "html_sha256": "653b40ef97c6d98b37b0cd04f9249c5410eb67902f58c80bbbaa9337e896a232",
+  "reason": "Updated automatic-motion and line-height output; older browser results are not reused.",
+  "logic_regression": "PASS_ISOLATED_DOM",
   "powerpointVisualComparison": "NOT_PERFORMED"
 }

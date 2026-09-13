@@ -56,11 +56,45 @@
   "text_sha256": "ed168b053b01c872707b492f65266fe63805617d4703ad59808dc086ef2190ff",
   "powerpoint_visual_comparison": "NOT_PERFORMED",
   "browser_layout_check": "NOT_PERFORMED",
+  "line_height_calibration": {
+    "default_factors": {
+      "Pretendard": 1.2
+    },
+    "overrides": {},
+    "basis": "Font natural line advance; Pretendard 1.2 measured in PowerPoint. Other fonts unchanged unless overridden.",
+    "exact_point_spacing_unchanged": true,
+    "applications": [
+      {
+        "font": "Pretendard",
+        "factor": 1.2,
+        "source_ratio": 1.1,
+        "css_ratio": 1.32,
+        "paragraphs": 29
+      },
+      {
+        "font": "Pretendard",
+        "factor": 1.2,
+        "source_ratio": 1.12,
+        "css_ratio": 1.344,
+        "paragraphs": 43
+      }
+    ]
+  },
   "html_text_sha256": "ed168b053b01c872707b492f65266fe63805617d4703ad59808dc086ef2190ff",
   "serialization_check": "PASS",
   "embedded_fonts": [],
   "font_availability": "SYSTEM_FONTS_NOT_VERIFIED",
   "source_bytes": 30227,
   "conversion_status": "PASS_STRUCTURE",
-  "html_bytes": 103942
+  "motion": {
+    "mode": "auto",
+    "duration_ms": 420,
+    "max_delay_ms": 500,
+    "maximum_total_ms": 920,
+    "manual_steps": false,
+    "item_click_actions": false,
+    "browser_verified": false
+  },
+  "html_bytes": 114740,
+  "html_sha256": "653b40ef97c6d98b37b0cd04f9249c5410eb67902f58c80bbbaa9337e896a232"
 }

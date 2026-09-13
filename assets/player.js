@@ -61,6 +61,7 @@
       catch (_) { location.hash = String(index); }
     }
     fit();
+    document.dispatchEvent(new CustomEvent('pptplayer:change'));
     return index;
   }
   function hashIndex() {
@@ -76,12 +77,19 @@
     editButton.setAttribute('aria-pressed', String(editing));
     editButton.textContent = editing ? '편집 종료' : '편집';
     editButton.title = 'E: 편집 전환. Ctrl/Cmd+S: 수정한 HTML 저장. PPTX에는 역반영되지 않습니다.';
+    document.dispatchEvent(new CustomEvent('pptplayer:change'));
     return editing;
   }
   function serialize() {
     const clone = document.documentElement.cloneNode(true);
     clone.dataset.startSlide = String(index);
-    clone.querySelector('body').classList.remove('is-editing');
+    clone.querySelector('body').classList.remove('is-editing', 'is-auditing');
+    clone.querySelectorAll('.dyn-auto-enter,[data-auto-motion]').forEach(el => {
+      el.classList.remove('dyn-auto-enter');
+      el.style.removeProperty('--dyn-delay');
+      el.style.removeProperty('--dyn-duration');
+      el.removeAttribute('data-auto-motion');
+    });
     clone.querySelectorAll('[contenteditable]').forEach(el => { el.removeAttribute('contenteditable'); el.removeAttribute('spellcheck'); });
     const edit = clone.querySelector('#edit');
     edit.setAttribute('aria-pressed', 'false'); edit.textContent = '편집';
@@ -146,6 +154,8 @@
     const key = event.key.toLowerCase();
     if ((event.ctrlKey || event.metaKey) && key === 's') { event.preventDefault(); save(); return; }
     if (event.ctrlKey || event.metaKey || event.altKey || editableTarget(event.target)) return;
+    // Space must activate a focused button once through its native click event.
+    if (key === ' ' && event.target instanceof Element && event.target.closest('button,[role="button"],a[href]')) return;
     if (['arrowright','arrowdown','pagedown',' '].includes(key)) { event.preventDefault(); go(index + 1); }
     else if (['arrowleft','arrowup','pageup'].includes(key)) { event.preventDefault(); go(index - 1); }
     else if (key === 'home') { event.preventDefault(); go(1); }
@@ -165,11 +175,13 @@
   }, {passive:true});
 
   async function audit() {
-    await ready;
     if (auditing) throw new Error('Audit already running');
     auditing = true;
+    document.body.classList.add('is-auditing');
+    document.dispatchEvent(new CustomEvent('pptplayer:change'));
     const tolerance = 2.5, results = [], originalIndex = index;
     try {
+      await ready;
       for (let i = 0; i < slides.length; i++) {
         setVisible(i + 1);
         if (document.fonts) await document.fonts.ready;
@@ -210,7 +222,12 @@
         });
         results.push({index:i+1,overflows,outOfBounds,manualReview});
       }
-    } finally { setVisible(originalIndex); auditing = false; fit(); }
+    } finally {
+      setVisible(originalIndex); auditing = false;
+      document.body.classList.remove('is-auditing');
+      document.dispatchEvent(new CustomEvent('pptplayer:change'));
+      fit();
+    }
     return {ok:!sourceErrors.length && results.every(s=>!s.overflows.length&&!s.outOfBounds.length),
       slides:results,sourceErrors:sourceErrors.length,tolerancePx:tolerance,
       fontsRequested:manifest.fonts || [],fontAvailability:'NOT_VERIFIED',
@@ -221,5 +238,6 @@
     if (document.fonts) await document.fonts.ready;
     fit(); return true;
   })();
-  window.PPTPlayer = {go,next:()=>go(index+1),prev:()=>go(index-1),getIndex:()=>index,setEditing,save,serialize,audit,ready};
+  window.PPTPlayer = {go,next:()=>go(index+1),prev:()=>go(index-1),getIndex:()=>index,
+    getState:()=>({index,editing,auditing}),setEditing,save,serialize,audit,ready};
 })();

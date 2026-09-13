@@ -16,11 +16,12 @@
 | 기본 도형과 연결선 | SVG. 원래 순서와 위치를 유지 |
 | 마스터·레이아웃 | 공통 장식과 Footer를 포함하고 사용된 플레이스홀더 서식을 상속 |
 | 발표 조작 | 이전/다음, 번호 이동, 해시 링크, 키보드, 터치, 전체 화면 API |
+| 자동 등장 | 슬라이드 진입 후 약 0.92초 안에 내용 표시. 한 번 조작하면 한 슬라이드 이동 |
 | 간단 편집 | 글자 단위 서식 구간을 편집하고 수정한 HTML 저장 |
 | 네트워크 | 기본 출력에 CDN·분석 코드·외부 스크립트 없음 |
 | 미지원 요소 | 오류와 object_id를 기록. 해당 요소만 이미지로 대체 가능 |
 
-슬라이드 전체를 캡처 이미지로 붙이는 방식이 아닙니다. 퀴즈, 실시간 계산기, PPTX 애니메이션 재생, HTML 수정의 PPTX 역반영은 기본 기능에 포함되지 않습니다.
+텍스트·표·SVG와 플레이어를 오프라인 단일 HTML에 담습니다. 퀴즈, 실시간 계산기, 항목 클릭 강조, 수동 단계 공개, PPTX 애니메이션 재생, HTML 수정의 PPTX 역반영은 기본 기능에 포함되지 않습니다.
 
 ## 빠른 시작
 
@@ -37,7 +38,7 @@ ZIP으로 받았다면 폴더 이름을 `consulting-pptx-to-html`로 바꾸고 �
 
 ### 2. 준비
 
-- **Python 3.9 이상**. 변환·설치·회귀 테스트는 표준 라이브러리만 사용합니다. `pip install`은 필요 없습니다.
+- **Python 3.9 이상**. 변환·설치·Python 회귀 테스트는 표준 라이브러리만 사용합니다. `pip install`은 필요 없습니다.
 - **현대적인 브라우저**. 자동 검사기는 Chrome·Chromium·Edge 실행 파일을 사용합니다.
 - **원본 PPTX의 글꼴**. 기본 결과는 시스템에 설치된 글꼴을 사용합니다.
 - **PowerPoint 또는 별도의 신뢰할 수 있는 렌더러**. 원본과의 시각 대조용이며 이 스킬에 포함되지 않습니다.
@@ -56,10 +57,10 @@ python scripts/check_html.py preview.html --report browser-qa.json
 ### 4. 실제 PPTX 변환
 
 ```text
-python scripts/convert.py "완성된_발표자료.pptx" -o "발표자료.html"
+python scripts/convert.py "완성된_발표자료.pptx" -o "발표자료.html" --motion auto
 ```
 
-기존 결과를 의도적으로 교체할 때만 `--overwrite`를 사용하세요. 이미 존재하는 파일은 기본적으로 덮어쓰지 않습니다.
+`--motion auto`는 생략해도 기본 적용됩니다. 움직임 없이 즉시 전체 내용을 표시하려면 `--motion none`을 사용하세요. 기존 결과를 의도적으로 교체할 때만 `--overwrite`를 사용하세요. 이미 존재하는 파일은 기본적으로 덮어쓰지 않습니다.
 
 ```text
 python scripts/convert.py "완성된_발표자료.pptx" -o "발표자료.html" --overwrite
@@ -97,6 +98,7 @@ python scripts/install.py --target all --replace
 consulting-pptx-to-html 스킬로 첨부한 완성 PPTX를 HTML 강의안으로 변환해줘.
 원본 문구, 장수, 순서, 글꼴 크기, 표와 도식의 배치를 유지해줘.
 제목·Header·Footer는 원본 기준으로 두고, 발표 조작부만 캔버스 밖에 추가해줘.
+슬라이드를 넘기면 내용을 짧게 자동 표시하고, 항목 클릭 강조나 수동 단계 공개는 넣지 마.
 노트는 포함하지 말고 미지원 요소는 먼저 보고해줘.
 HTML과 구조 검사 결과를 만들고, 브라우저 검사와 PowerPoint 대조 결과를 구분해서 알려줘.
 ```
@@ -104,6 +106,10 @@ HTML과 구조 검사 결과를 만들고, 브라우저 검사와 PowerPoint 대
 `consulting-pptx`는 PPTX 제작·디자인 변경용이고, 이 스킬은 **승인된 PPTX의 HTML 버전 제작용**입니다. 원고에서 새 덱을 만드는 도구로 사용하지 않습니다.
 
 ## 발표와 편집
+
+기본 자동 등장은 슬라이드가 바뀔 때 실행됩니다. 요소별 재생 시간은 420ms, 시작 지연은 최대 500ms로, 전체 내용이 약 0.92초 안에 나타납니다. 내용의 최종 위치·크기·문구는 원본대로 유지합니다. 슬라이드는 자동으로 넘어가지 않으며, 방향키·Space·이전/다음은 한 번 조작할 때 한 슬라이드 이동합니다. 항목 클릭이나 추가 단계 버튼은 필요 없습니다.
+
+`--motion none`과 운영체제의 모션 감소 설정에서는 내용을 즉시 표시합니다. 편집·저장·인쇄·검수 중에는 등장 효과 때문에 내용이 숨지 않도록 처리합니다. 이 효과는 HTML 플레이어의 발표 기능이며, 원본 PPTX 애니메이션을 재생하는 기능은 아닙니다.
 
 | 조작 | 기능 |
 |---|---|
@@ -133,6 +139,18 @@ python scripts/convert.py input.pptx -o output.html --font "Pretendard,400,fonts
 - 이름을 지정했다고 설치 여부를 검증한 것은 아닙니다. 포함하지 않은 다른 글꼴은 여전히 시스템 환경에 의존합니다.
 - 폰트 포함 시 파일이 커집니다. 라이선스와 필요한 저작권 고지를 확인하세요.
 - 이 저장소에는 폰트 바이너리가 들어 있지 않습니다.
+
+### PowerPoint와 브라우저의 행간 맞추기
+
+Pretendard의 백분율 행간은 PowerPoint에서 실측한 자연 행높이 계수 **1.2**를 기본 적용합니다. 예를 들어 원본 1.1배는 CSS `line-height: 1.32`, 1.05배는 `1.26`이 됩니다. 글자 크기·텍스트 상자·원본 문구를 바꾸는 보정이 아닙니다. 점 단위로 지정된 행간은 그대로 단위 변환하며, 이 계수를 다른 글꼴에 일괄 적용하지 않습니다.
+
+다른 글꼴 또는 다른 메트릭이 확인된 환경에서는 원본 PowerPoint의 실제 줄 사이 거리를 측정한 뒤 글꼴별로 지정할 수 있습니다.
+
+```text
+python scripts/convert.py input.pptx -o output.html --line-height-factor "Pretendard=1.2"
+```
+
+이 옵션은 `FAMILY=FACTOR` 형식으로 반복 지정합니다. 적용된 보정은 감사 보고서에 남습니다. 계수는 보편적인 글꼴 공식이 아니며, 실제 원본과 비교해 결정합니다. 측정 방법과 혼합 글꼴의 한계는 [호환 범위](references/compatibility.md)를 확인하세요.
 
 ## 노트와 개인정보
 
@@ -175,9 +193,14 @@ python scripts/convert.py input.pptx -o output.html --fallback-manifest fallback
 - `slide_count`, 슬라이드별 요소 수와 텍스트 구간 수
 - `serialization_check: PASS`, 추출한 텍스트와 HTML 직렬화 텍스트의 해시 일치
 - `issues`의 오류와 경고, 포함한 노트·글꼴
+- `motion`의 자동 등장 모드·시간, 수동 단계 및 항목 클릭 비활성화 설정
+- `line_height_calibration`의 기본 계수·재정의 값·실제 적용 문단, `exact_point_spacing_unchanged`
+- 실제 출력 파일 바이트 기준의 `html_sha256`, `html_bytes`
 - `powerpoint_visual_comparison: NOT_PERFORMED`
 
-이 해시는 변환기가 읽어낸 지원 텍스트의 직렬화 검사입니다. 미지원 개체 내부의 모든 내용을 읽었다는 보증이 아닙니다.
+`serialization_check`의 텍스트 해시는 변환기가 읽어낸 지원 텍스트의 직렬화 검사입니다. 미지원 개체 내부의 모든 내용을 읽었다는 보증이 아닙니다. `html_sha256`은 이와 별도로 실제 HTML 파일 전체의 바이트를 식별합니다.
+
+`motion.browser_verified: false`는 변환만으로 브라우저 실행을 확인하지 않았다는 뜻입니다. 별도 실제 조작 결과를 기록하기 전에는 동작 검증 완료로 해석하지 않습니다.
 
 ### 브라우저 검사
 
@@ -191,13 +214,15 @@ python scripts/check_html.py output.html --report browser-qa.json
 python scripts/check_html.py output.html --browser "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 ```
 
-실행 파일을 사용할 수 없는 브라우저 자동화 환경에서는 생성된 HTML을 연 뒤 개발자 콘솔에서 실행할 수 있습니다.
+환경에서 허용하는 브라우저 도구를 사용하세요. 직접 콘솔 실행이 가능한 환경에서는 생성된 HTML을 연 뒤 다음 감사 API도 사용할 수 있습니다.
 
 ```javascript
 await window.PPTPlayer.audit()
 ```
 
 검사기는 모든 페이지의 텍스트 경계와 캔버스 밖 요소를 측정하고 원래 페이지로 돌아갑니다. 기본 허용 오차는 2.5 CSS px입니다. 회전된 텍스트 등은 수동 검수 항목으로 남깁니다. 의도적인 겹침, 잘못된 연결 관계, 의미 손실, 글꼴 실제 설치 여부를 완전히 판정하지는 않습니다.
+
+자동 등장이 끝난 화면에서 경계와 원본 배치를 비교하세요. 슬라이드 진입 후 내용이 자동으로 나타나는지, 방향키 한 번에 다음 슬라이드로 이동하는지, 편집·저장·인쇄 시 내용이 빠지지 않는지 실제 조작으로 확인합니다. 접근 정책으로 실행할 수 없는 검사는 `미실시` 또는 `환경 제한`으로 남깁니다. 정책을 우회해 실행하는 것은 검수 요건이 아닙니다.
 
 ### 회귀 테스트
 
@@ -207,9 +232,17 @@ python -m unittest discover -s tests -v
 
 일반화된 4장 샘플과 임시 OOXML 변형으로 문구 일치, 마스터·레이아웃, 노트 제외, 그룹 좌표, HTML 문자 이스케이프, 이미지·크롭·대체 요소, 미지원 차트 경고, 덮어쓰기 방지를 검사합니다. 테스트용 임시 폴더는 `tests/` 아래에 만들고 제거합니다.
 
-최종 배포 전에는 반드시 원본 PowerPoint와 HTML을 같은 크기로 나란히 비교하세요. HTML에서 넘침이 없다는 사실만으로 원본과 같다고 판단하지 않습니다.
+플레이어 상태 회귀는 `jsdom`을 사용할 수 있는 Node.js 환경에서 선택적으로 실행합니다. 자동 등장, 페이지 이동, 편집·인쇄 상태, 저장 후 재열기를 검사하며 실제 브라우저의 레이아웃·다운로드·인쇄 결과 검사를 대신하지 않습니다.
+
+```text
+node tests/test_player.cjs examples/sample.html
+```
+
+원본 PowerPoint와 HTML을 같은 크기로 나란히 비교하고 실제 비교 범위를 기록하세요. 구조·단위/DOM 검사 통과와 실제 브라우저 동작, PowerPoint 시각 대조는 별도 결과입니다. 렌더러가 없어 비교하지 못했다면 명시하며, HTML에서 넘침이 없다는 사실만으로 원본과 같다고 판단하지 않습니다.
 
 ## 초기 검수 범위
+
+다음은 초기 버전의 검사 기록입니다. 현재 변경의 자동 등장·행간 보정 검증 결과를 대신하지 않으며, 각 변환 결과는 별도로 검수합니다.
 
 - 회귀 테스트 7개 통과. 별도 테스트 홈에서 Codex·Claude Code 설치 파일 복사·해시 검사 통과.
 - 일반화한 4장 샘플: 82개 배치 요소, 72개 텍스트 구간, 브라우저 넘침·캔버스 밖 요소 0건.
@@ -228,7 +261,9 @@ consulting-pptx-to-html/
 ├── assets/
 │   ├── player.html
 │   ├── player.css
-│   └── player.js
+│   ├── player.js
+│   ├── auto-motion.js
+│   └── auto-motion.css
 ├── scripts/
 │   ├── convert.py
 │   ├── pptx_html.py
@@ -242,7 +277,8 @@ consulting-pptx-to-html/
 │   ├── sample.audit.json
 │   └── sample.browser-qa.json
 └── tests/
-    └── test_conversion.py
+    ├── test_conversion.py
+    └── test_player.cjs
 ```
 
 ## 설계 참고
