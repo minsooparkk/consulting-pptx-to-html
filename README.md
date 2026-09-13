@@ -16,7 +16,7 @@
 | 기본 도형과 연결선 | SVG. 원래 순서와 위치를 유지 |
 | 마스터·레이아웃 | 공통 장식과 Footer를 포함하고 사용된 플레이스홀더 서식을 상속 |
 | 발표 조작 | 이전/다음, 번호 이동, 해시 링크, 키보드, 터치, 전체 화면 API |
-| 자동 등장 | 슬라이드 진입 후 약 0.92초 안에 내용 표시. 한 번 조작하면 한 슬라이드 이동 |
+| 자동 등장 | 일반 슬라이드는 약 0.92초 안에 표시. 명시한 절차는 기본 0.3초 간격으로 누적 표시 |
 | 간단 편집 | 글자 단위 서식 구간을 편집하고 수정한 HTML 저장 |
 | 네트워크 | 기본 출력에 CDN·분석 코드·외부 스크립트 없음 |
 | 미지원 요소 | 오류와 object_id를 기록. 해당 요소만 이미지로 대체 가능 |
@@ -107,7 +107,7 @@ HTML과 구조 검사 결과를 만들고, 브라우저 검사와 PowerPoint 대
 
 ## 발표와 편집
 
-기본 자동 등장은 슬라이드가 바뀔 때 실행됩니다. 요소별 재생 시간은 420ms, 시작 지연은 최대 500ms로, 전체 내용이 약 0.92초 안에 나타납니다. 내용의 최종 위치·크기·문구는 원본대로 유지합니다. 슬라이드는 자동으로 넘어가지 않으며, 방향키·Space·이전/다음은 한 번 조작할 때 한 슬라이드 이동합니다. 항목 클릭이나 추가 단계 버튼은 필요 없습니다.
+기본 자동 등장은 슬라이드가 바뀔 때 실행됩니다. 일반 슬라이드는 요소별 재생 시간 420ms, 시작 지연 최대 500ms로 전체 내용이 약 0.92초 안에 나타납니다. 내용의 최종 위치·크기·문구는 원본대로 유지합니다. 슬라이드는 자동으로 넘어가지 않으며, 방향키·Space·이전/다음은 한 번 조작할 때 한 슬라이드 이동합니다. 항목 클릭이나 추가 단계 버튼은 필요 없습니다.
 
 `--motion none`과 운영체제의 모션 감소 설정에서는 내용을 즉시 표시합니다. 편집·저장·인쇄·검수 중에는 등장 효과 때문에 내용이 숨지 않도록 처리합니다. 이 효과는 HTML 플레이어의 발표 기능이며, 원본 PPTX 애니메이션을 재생하는 기능은 아닙니다.
 
@@ -125,6 +125,18 @@ HTML과 구조 검사 결과를 만들고, 브라우저 검사와 PowerPoint 대
 | 브라우저 인쇄 | 슬라이드당 한 페이지. 원본 Footer 유지, 조작부 제외 |
 
 편집 중에는 방향키가 글자 커서를 이동하며, 일반 Undo/Redo를 가로채지 않습니다. 붙여넣기는 일반 텍스트로 처리합니다. **HTML 편집은 PPTX를 수정하지 않습니다.** 구조·수치 변경은 원본 PPTX에서 먼저 확정하고 다시 변환하는 것이 안전합니다. 다시 변환하면 HTML에서 한 수정이 자동으로 병합되지 않습니다.
+
+### 선택한 절차를 순서대로 표시하기
+
+절차 슬라이드를 명시적으로 선택하면 각 단계의 번호·제목·설명·도착 화살표를 함께 표시할 수 있습니다. 앞 단계는 그대로 남고, 결론은 마지막에 나타납니다. 제목·Header·Footer는 고정하고, 동적 그룹에 포함되지 않은 객체는 처음부터 보입니다.
+
+```text
+python scripts/convert.py input.pptx -o output.html --procedure-manifest procedures.json --procedure-interval-ms 300
+```
+
+간격 기본값은 **300ms**이며 요청에 맞춰 조절할 수 있습니다. 첫 단계는 150ms 뒤 시작하고, 각 단계의 등장 효과는 420ms입니다. JavaScript 타이머가 숨김을 직접 해제하고 완료 후 상태를 정리합니다. 선택하지 않은 슬라이드는 기존 자동 등장을 유지합니다. `--motion none`과 절차 매핑은 함께 사용할 수 없습니다.
+
+매핑은 먼저 생성한 HTML의 실제 객체 ID를 사용합니다. JSON 형식과 공개 샘플 예시, 저장·인쇄·페이지 복원 및 실제 시간 검수 방법은 [절차별 누적 등장](references/procedural-reveal.md)을 확인하세요.
 
 ## 글꼴과 오프라인 사용
 
@@ -194,6 +206,7 @@ python scripts/convert.py input.pptx -o output.html --fallback-manifest fallback
 - `serialization_check: PASS`, 추출한 텍스트와 HTML 직렬화 텍스트의 해시 일치
 - `issues`의 오류와 경고, 포함한 노트·글꼴
 - `motion`의 자동 등장 모드·시간, 수동 단계 및 항목 클릭 비활성화 설정
+- 절차를 매핑했다면 `procedural_reveal`의 선택 슬라이드·단계 수·간격·최대 표시 완료 및 상태 정리 시간
 - `line_height_calibration`의 기본 계수·재정의 값·실제 적용 문단, `exact_point_spacing_unchanged`
 - 실제 출력 파일 바이트 기준의 `html_sha256`, `html_bytes`
 - `powerpoint_visual_comparison: NOT_PERFORMED`
@@ -224,6 +237,8 @@ await window.PPTPlayer.audit()
 
 자동 등장이 끝난 화면에서 경계와 원본 배치를 비교하세요. 슬라이드 진입 후 내용이 자동으로 나타나는지, 방향키 한 번에 다음 슬라이드로 이동하는지, 편집·저장·인쇄 시 내용이 빠지지 않는지 실제 조작으로 확인합니다. 접근 정책으로 실행할 수 없는 검사는 `미실시` 또는 `환경 제한`으로 남깁니다. 정책을 우회해 실행하는 것은 검수 요건이 아닙니다.
 
+절차별 등장은 실제 시간이 흐르는 동안 앞 단계가 남고 다음 단계가 추가되는지, 마지막에는 모든 내용과 결론이 보이는지 검사합니다. `finish()`, `currentTime` 변경, `clear()` 호출 또는 애니메이션 비활성화로 강제한 화면은 자동 등장 완료 검사를 대신하지 않습니다. 배치 검사와 시간에 따른 동작 검사를 별도로 기록하세요.
+
 ### 회귀 테스트
 
 ```text
@@ -236,6 +251,13 @@ python -m unittest discover -s tests -v
 
 ```text
 node tests/test_player.cjs examples/sample.html
+```
+
+절차별 누적 표시의 실제 시간 흐름 회귀는 Playwright가 설치된 Node.js 환경에서 선택적으로 실행합니다. 브라우저 실행 파일을 지정해야 하면 `PPT_HTML_BROWSER` 환경 변수를 사용하세요.
+
+```text
+python scripts/convert.py examples/sample.pptx -o output/procedures.html --procedure-manifest examples/sample.procedures.json
+node tests/test_procedural_browser.cjs output/procedures.html
 ```
 
 원본 PowerPoint와 HTML을 같은 크기로 나란히 비교하고 실제 비교 범위를 기록하세요. 구조·단위/DOM 검사 통과와 실제 브라우저 동작, PowerPoint 시각 대조는 별도 결과입니다. 렌더러가 없어 비교하지 못했다면 명시하며, HTML에서 넘침이 없다는 사실만으로 원본과 같다고 판단하지 않습니다.
@@ -270,15 +292,18 @@ consulting-pptx-to-html/
 │   ├── check_html.py
 │   └── install.py
 ├── references/
-│   └── compatibility.md
+│   ├── compatibility.md
+│   └── procedural-reveal.md
 ├── examples/
 │   ├── sample.pptx
 │   ├── sample.html
+│   ├── sample.procedures.json
 │   ├── sample.audit.json
 │   └── sample.browser-qa.json
 └── tests/
     ├── test_conversion.py
-    └── test_player.cjs
+    ├── test_player.cjs
+    └── test_procedural_browser.cjs
 ```
 
 ## 설계 참고

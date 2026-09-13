@@ -1,0 +1,13 @@
+{
+  "slides": [
+    {
+      "slide": 4,
+      "groups": [
+        {"label": "범위 확인", "ids": ["s004_slide_5", "s004_slide_6", "s004_slide_7", "s004_slide_8"]},
+        {"label": "기준 정리", "ids": ["s004_slide_9", "s004_slide_10", "s004_slide_11", "s004_slide_12"]},
+        {"label": "결과 공유", "ids": ["s004_slide_13", "s004_slide_14", "s004_slide_15", "s004_slide_16"]}
+      ],
+      "conclusionIds": ["s004_slide_17", "s004_slide_18", "s004_slide_19"]
+    }
+  ]
+}

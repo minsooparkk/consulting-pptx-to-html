@@ -84,8 +84,8 @@
     const clone = document.documentElement.cloneNode(true);
     clone.dataset.startSlide = String(index);
     clone.querySelector('body').classList.remove('is-editing', 'is-auditing');
-    clone.querySelectorAll('.dyn-auto-enter,[data-auto-motion]').forEach(el => {
-      el.classList.remove('dyn-auto-enter');
+    clone.querySelectorAll('.dyn-procedure-pending,.dyn-auto-enter,[data-auto-motion]').forEach(el => {
+      el.classList.remove('dyn-procedure-pending','dyn-auto-enter');
       el.style.removeProperty('--dyn-delay');
       el.style.removeProperty('--dyn-duration');
       el.removeAttribute('data-auto-motion');

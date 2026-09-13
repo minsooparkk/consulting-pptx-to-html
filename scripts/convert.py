@@ -11,6 +11,7 @@ import sys
 from html.parser import HTMLParser
 from pathlib import Path
 from pptx_html import Converter, data_uri, css_family, safe_json
+from procedural import build_procedural_reveal, positive_interval
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -40,14 +41,18 @@ def main(argv=None):
     ap.add_argument('--fallback-manifest',type=Path,help='JSON object ID -> local image path; relative to manifest')
     ap.add_argument('--font',action='append',default=[],metavar='FAMILY,WEIGHT,FILE',help='Embed a licensed font, e.g. Pretendard,400,/fonts/Pretendard-Regular.woff2')
     ap.add_argument('--motion',choices=['auto','none'],default='auto',help='Automatic brief entrances on slide navigation (default), or no added motion')
+    ap.add_argument('--procedure-manifest',type=Path,help='JSON explicit ordered object groups for selected slides')
+    ap.add_argument('--procedure-interval-ms',type=positive_interval,default=300,help='Positive interval between procedural groups in milliseconds (default: 300)')
     ap.add_argument('--line-height-factor',action='append',default=[],metavar='FAMILY=FACTOR',help='Measured natural line-height factor for percentage spacing; Pretendard defaults to 1.2')
     ap.add_argument('--allow-unsupported',action='store_true',help='Keep a marked partial preview and return 0 even with conversion errors')
     ap.add_argument('--overwrite',action='store_true')
     args=ap.parse_args(argv)
+    if args.procedure_manifest and args.motion=='none': ap.error('--procedure-manifest cannot be combined with --motion none')
     if args.pptx.suffix.lower()!='.pptx': ap.error('Only .pptx is accepted; convert legacy .ppt in PowerPoint first')
     if args.output.suffix.lower() not in ('.html','.htm'): ap.error('Output must be .html or .htm')
     report_path=args.report or args.output.with_suffix('.audit.json')
     if args.output.resolve()==args.pptx.resolve() or report_path.resolve()==args.pptx.resolve() or report_path.resolve()==args.output.resolve(): ap.error('Input, HTML and report paths must differ')
+    if args.procedure_manifest and args.procedure_manifest.resolve() in (args.output.resolve(),report_path.resolve()): ap.error('Procedure manifest cannot be overwritten by HTML or report output')
     for p in [args.output,report_path]:
         if p.exists() and not args.overwrite: ap.error(f'Already exists: {p.name}. Use --overwrite intentionally')
     fallbacks={}
@@ -90,6 +95,13 @@ def main(argv=None):
     manifest['embedded_fonts']=embedded
     manifest['motion']={'mode':args.motion,'duration_ms':420,'max_delay_ms':500}
     report['motion']={**manifest['motion'],'maximum_total_ms':920 if args.motion=='auto' else 0,'manual_steps':False,'item_click_actions':False,'browser_verified':False}
+    if args.procedure_manifest:
+        procedure_data=json.loads(args.procedure_manifest.read_text(encoding='utf-8'))
+        procedure,procedure_audit=build_procedural_reveal(procedure_data,slides,args.procedure_interval_ms)
+        manifest['procedural_reveal']=procedure
+        report['procedural_reveal']=procedure_audit
+        report['motion']['normal_maximum_total_ms']=report['motion']['maximum_total_ms']
+        report['motion']['maximum_total_ms']=max(report['motion']['maximum_total_ms'],procedure_audit['maximum_total_ms'])
     template=(ROOT/'assets/player.html').read_text(encoding='utf-8')
     replacements={'TITLE':html.escape(manifest['title'],quote=True),'STYLE':'\n'.join(fontcss)+'\n'+(ROOT/'assets/player.css').read_text(encoding='utf-8'),
                   'SLIDES':slides,'MANIFEST':safe_json(manifest),'SCRIPT':(ROOT/'assets/player.js').read_text(encoding='utf-8')}

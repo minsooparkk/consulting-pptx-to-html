@@ -4,3 +4,8 @@
 .is-editing .dyn-auto-enter,.is-auditing .dyn-auto-enter{animation:none!important;opacity:1!important;translate:none!important}
 @media(prefers-reduced-motion:reduce){.dyn-auto-enter{animation:none!important;opacity:1!important;translate:none!important}}
 @media print{.dyn-auto-enter{animation:none!important;opacity:1!important;translate:none!important}}
+/* The scheduler releases pending groups cumulatively, then removes every marker. */
+.dyn-procedure-pending{opacity:0!important}
+.is-editing .dyn-procedure-pending,.is-auditing .dyn-procedure-pending{opacity:1!important;animation:none!important;translate:none!important}
+@media(prefers-reduced-motion:reduce){.dyn-procedure-pending{opacity:1!important;animation:none!important;translate:none!important}}
+@media print{.dyn-procedure-pending{opacity:1!important;animation:none!important;translate:none!important}}

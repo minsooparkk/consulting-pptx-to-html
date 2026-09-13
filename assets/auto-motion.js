@@ -1,4 +1,4 @@
-/* Dependency-free entrance plans inferred from source objects, never slide text. */
+/* Dependency-free automatic entrances, with explicit cumulative procedure groups. */
 (() => {
   'use strict';
   const player = window.PPTPlayer;
@@ -8,6 +8,10 @@
   const reduced = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : {matches:false};
   const duration = Math.max(0, Math.min(420, Number(manifest.motion.duration_ms) || 420));
   const maxDelay = Math.max(0, Math.min(500, Number(manifest.motion.max_delay_ms) || 500));
+  const procedural = manifest.procedural_reveal || {};
+  const proceduralBySlide = new Map((procedural.slides || []).map(spec => [Number(spec.slide),spec]));
+  const procedureInterval = Number(procedural.interval_ms) || 300;
+  const procedureInitialDelay = Number(procedural.initial_delay_ms) || 150;
   const epsilon = Math.max(2, Number(manifest.width) / 320);
   const sourceBox = element => {
     const x = parseFloat(element.style.left) || 0, y = parseFloat(element.style.top) || 0;
@@ -77,6 +81,17 @@
     return bands(items,'y',epsilon*2).map(row=>group(row,'row'));
   }
   function makePlan(slide) {
+    const spec = proceduralBySlide.get(Number(slide.id.replace('slide-','')));
+    if (spec) {
+      const entries = [...spec.groups, ...(spec.conclusionIds.length ? [{label:'결론',ids:spec.conclusionIds,conclusion:true}] : [])];
+      const plan = entries.map(entry => ({
+        elements:entry.ids.map(id=>document.getElementById(id)),
+        kind:entry.conclusion?'procedure-conclusion':'procedure-step',label:entry.label
+      }));
+      if (plan.every(entry=>entry.elements.length && entry.elements.every(element=>element && slide.contains(element)))) return plan;
+      console.warn('Procedural mapping unavailable for slide '+spec.slide+'; keeping all content visible.');
+      return [];
+    }
     // Converter IDs carry source origin; keep inherited master/layout furniture static.
     const objects = [...slide.children].filter(element=>element.classList.contains('ppt-object') &&
       (element.dataset.objectId || '').includes('_slide_'));
@@ -108,18 +123,63 @@
     }))) return [{elements:[...new Set(entries.flatMap(entry=>entry.elements))],kind:'together'}];
     return entries.sort((a,b)=>a.box.y-b.box.y || a.box.x-b.box.x);
   }
-  const records = [...deck.querySelectorAll('.ppt-slide')].map(slide=>({slide,groups:makePlan(slide)}));
+  const records = [...deck.querySelectorAll('.ppt-slide')].map(slide=>{
+    const groups=makePlan(slide);
+    return {slide,groups,procedural:groups.some(entry=>entry.kind==='procedure-step')};
+  });
   let active = player.getIndex()-1, state = player.getState(), printing = false, ready = false;
+  const timers = new Set();
+  let generation = 0, sequence = null;
+  function release(element) {
+    element.classList.remove('dyn-procedure-pending','dyn-auto-enter');
+    element.removeAttribute('data-auto-motion');
+    element.style.removeProperty('--dyn-delay');
+    element.style.removeProperty('--dyn-duration');
+  }
   function clear() {
-    deck.querySelectorAll('.dyn-auto-enter,[data-auto-motion]').forEach(element=>{
-      element.classList.remove('dyn-auto-enter'); element.removeAttribute('data-auto-motion');
-      element.style.removeProperty('--dyn-delay'); element.style.removeProperty('--dyn-duration');
+    generation++;
+    timers.forEach(id=>clearTimeout(id)); timers.clear(); sequence=null;
+    deck.querySelectorAll('.dyn-procedure-pending,.dyn-auto-enter,[data-auto-motion]').forEach(release);
+  }
+  function schedule(callback,delay,run) {
+    const id=setTimeout(()=>{
+      timers.delete(id);
+      if (run!==generation) return;
+      const current=player.getState();
+      if (current.index-1!==active || current.editing || current.auditing || printing || reduced.matches) { clear(); return; }
+      try { callback(); } catch(error) { clear(); console.error('Entrance recovered with all content visible.',error); }
+    },delay);
+    timers.add(id);
+  }
+  function playProcedure(record) {
+    const run=++generation;
+    const total=procedureInitialDelay+(record.groups.length-1)*procedureInterval+duration;
+    sequence={startedAt:Date.now(),totalMs:total,shownGroups:0,totalGroups:record.groups.length};
+    // Register the final cleanup before hiding anything. Visibility does not depend on CSS completing.
+    schedule(clear,total+80,run);
+    record.groups.forEach((entry,i)=>{
+      entry.elements.forEach(element=>{
+        element.setAttribute('data-auto-motion','');
+        element.classList.add('dyn-procedure-pending');
+      });
+      schedule(()=>{
+        entry.elements.forEach(element=>{
+          element.style.setProperty('--dyn-delay','0ms');
+          element.style.setProperty('--dyn-duration',duration+'ms');
+          element.classList.add('dyn-auto-enter');
+          element.classList.remove('dyn-procedure-pending');
+        });
+        if (sequence) sequence.shownGroups=i+1;
+        // Each revealed group becomes plain, permanently visible source content.
+        schedule(()=>entry.elements.forEach(release),duration+20,run);
+      },procedureInitialDelay+i*procedureInterval,run);
     });
   }
   function play() {
     if (!ready || state.editing || state.auditing || printing || reduced.matches) return;
     const record = records[active];
     if (!record) return;
+    if (record.procedural) { playProcedure(record); return; }
     const interval = Math.min(100,maxDelay/Math.max(1,record.groups.length-1));
     record.groups.forEach((entry,i)=>entry.elements.forEach(element=>{
       element.style.setProperty('--dyn-delay',Math.round(i*interval)+'ms');
@@ -139,11 +199,18 @@
   if (reduced.addEventListener) reduced.addEventListener('change',clear);
   window.addEventListener('beforeprint',()=>{printing=true;clear();});
   window.addEventListener('afterprint',()=>{printing=false;});
+  document.addEventListener('visibilitychange',()=>{if(sequence) clear();});
+  window.addEventListener('pageshow',event=>{if(event.persisted) clear();});
+  window.addEventListener('focus',()=>{if(sequence && Date.now()-sequence.startedAt>=sequence.totalMs) clear();});
   window.PPTAutoMotion = {
     getState:()=>({slide:active+1,editing:state.editing,auditing:state.auditing,reducedMotion:reduced.matches,printing,
-      durationMs:duration,maxDelayMs:maxDelay,groups:records[active]?.groups.length || 0}),
-    describeGroups:()=>records.map((record,index)=>({slide:index+1,groups:record.groups.map(entry=>({
-      kind:entry.kind,objects:entry.elements.map(element=>element.dataset.objectId || element.closest('.ppt-object')?.dataset.objectId || ''),
+      scheduler:'cumulative-timers',pendingTimers:timers.size,sequence:sequence?{...sequence}:null,
+      durationMs:duration,maxDelayMs:records[active]?.procedural?procedureInitialDelay+(records[active].groups.length-1)*procedureInterval:maxDelay,groups:records[active]?.groups.length || 0,
+      procedural:Boolean(records[active]?.procedural),
+      intervalMs:records[active]?.procedural?procedureInterval:null,
+      initialDelayMs:records[active]?.procedural?procedureInitialDelay:0}),
+    describeGroups:()=>records.map((record,index)=>({slide:index+1,procedural:record.procedural,groups:record.groups.map(entry=>({
+      kind:entry.kind,label:entry.label || '',objects:entry.elements.map(element=>element.dataset.objectId || element.closest('.ppt-object')?.dataset.objectId || ''),
       names:entry.elements.map(element=>element.dataset.name || ''),size:entry.elements.length
     }))})),clear
   };
